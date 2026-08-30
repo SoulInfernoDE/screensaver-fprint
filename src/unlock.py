@@ -20,6 +20,20 @@ from widgets.transparentButton import TransparentButton
 from fingerprintPanel import FingerprintPanel
 import fingerprintMessages
 
+
+def fprint_report(where):
+    """Report a failure in the fingerprint panel without raising.
+
+    This code is an addition to an authentication dialog: if it throws, the
+    lock screen goes down with it and the machine stops locking - a far worse
+    outcome than a panel that doesn't update. Every call into the panel is
+    therefore wrapped, and the traceback is printed straight to stderr rather
+    than raised, because cinnamon-screensaver's own sys.excepthook swallows
+    the text and leaves only "Original exception was:" in the journal.
+    """
+    print("fprint-panel: failure in %s\n%s" % (where, traceback.format_exc()),
+          file=sys.stderr, flush=True)
+
 class UnlockDialog(BaseWindow):
     """
     The main widget for the unlock dialog - this is a direct child of
@@ -198,21 +212,28 @@ class UnlockDialog(BaseWindow):
         # start fresh too. Without this, fingerprint_active stayed true forever
         # after the first fingerprint session and a plain wrong password later
         # was reported as a rejected finger.
-        self.fingerprint_active = False
-        self.password_prompted = False
-        self.fingerprint_panel.reset()
+        try:
+            self.fingerprint_active = False
+            self.password_prompted = False
+            self.fingerprint_panel.reset()
+        except Exception:
+            fprint_report("initialize_auth_client")
 
         return self.auth_client.initialize()
 
     def on_authentication_success(self, auth_client):
         self.set_busy(False)
 
-        if self.fingerprint_active:
-            # Green first, unlock when it has been seen - same 1.5s as the
-            # login screen, so both give the same feedback for the same act.
-            self.fingerprint_panel.show_success(
-                fingerprintMessages._p("Fingerprint recognised"))
-            return
+        try:
+            if self.fingerprint_active:
+                # Green first, unlock when it has been seen - same 1.5s as the
+                # login screen, so both give the same feedback for the same act.
+                self.fingerprint_panel.show_success(
+                    fingerprintMessages._p("Fingerprint recognised"))
+                return
+        except Exception:
+            # Never leave the user locked out because the flash failed.
+            fprint_report("on_authentication_success")
 
         self.emit("authenticate-success")
 
@@ -230,18 +251,22 @@ class UnlockDialog(BaseWindow):
         # shown, the attempt that just failed was a typed password - the finger
         # had nothing to do with it. Reporting "Fingerprint not recognised"
         # there was simply wrong.
-        if self.password_prompted:
-            if self.fingerprint_panel.is_active():
-                self.fingerprint_panel.show_password_failure(
-                    fingerprintMessages._p("Password not recognised"))
+        try:
+            if self.password_prompted:
+                if self.fingerprint_panel.is_active():
+                    self.fingerprint_panel.show_password_failure(
+                        fingerprintMessages._p("Password not recognised"))
+                else:
+                    self.auth_message_label.set_text(_("Incorrect password"))
+            elif self.fingerprint_active:
+                # Nothing was typed, so "Incorrect password" would be a lie.
+                # The verdict belongs on the panel, where the finger was.
+                self.fingerprint_panel.show_failure(
+                    fingerprintMessages._p("Fingerprint not recognised"))
             else:
                 self.auth_message_label.set_text(_("Incorrect password"))
-        elif self.fingerprint_active:
-            # Nothing was typed, so "Incorrect password" would be a lie. The
-            # verdict belongs on the panel, where the finger was.
-            self.fingerprint_panel.show_failure(
-                fingerprintMessages._p("Fingerprint not recognised"))
-        else:
+        except Exception:
+            fprint_report("on_authentication_failure")
             self.auth_message_label.set_text(_("Incorrect password"))
 
         self.password_entry.hide()
@@ -273,11 +298,14 @@ class UnlockDialog(BaseWindow):
     def on_authentication_prompt_changed(self, auth_client, prompt):
         # A prompt arriving after the reader has been talking means
         # pam_fprintd used up its tries and PAM fell through to the password.
-        self.password_prompted = True
+        try:
+            self.password_prompted = True
 
-        if self.fingerprint_active:
-            self.fingerprint_panel.show_password_fallback(
-                fingerprintMessages._p("Please use your password"))
+            if self.fingerprint_active:
+                self.fingerprint_panel.show_password_fallback(
+                    fingerprintMessages._p("Please use your password"))
+        except Exception:
+            fprint_report("on_authentication_prompt_changed")
 
         self.password_entry.show_all()
         self.auth_unlock_button.show_all()
@@ -297,20 +325,23 @@ class UnlockDialog(BaseWindow):
         # pam_fprintd's chatter arrives here as PAM_TEXT_INFO. It goes to the
         # panel instead of the info label: one message at a time, in German,
         # and next to the finger the user is actually using.
-        classified = fingerprintMessages.classify(info)
+        try:
+            classified = fingerprintMessages.classify(info)
 
-        if classified is not None:
-            kind, display = classified
-            self.fingerprint_active = True
+            if classified is not None:
+                kind, display = classified
+                self.fingerprint_active = True
 
-            if kind == fingerprintMessages.FAILURE:
-                self.fingerprint_panel.show_failure(display)
-            elif kind == fingerprintMessages.RETRY:
-                self.fingerprint_panel.show_retry(display)
-            else:
-                self.fingerprint_panel.show_waiting(display)
+                if kind == fingerprintMessages.FAILURE:
+                    self.fingerprint_panel.show_failure(display)
+                elif kind == fingerprintMessages.RETRY:
+                    self.fingerprint_panel.show_retry(display)
+                else:
+                    self.fingerprint_panel.show_waiting(display)
 
-            return
+                return
+        except Exception:
+            fprint_report("on_authentication_info_changed")
 
         self.auth_info = info
         self.update_authinfo_label()
@@ -321,9 +352,12 @@ class UnlockDialog(BaseWindow):
         """
         self.auth_client.cancel()
         self.clear_entry()
-        self.fingerprint_active = False
-        self.password_prompted = False
-        self.fingerprint_panel.reset()
+        try:
+            self.fingerprint_active = False
+            self.password_prompted = False
+            self.fingerprint_panel.reset()
+        except Exception:
+            fprint_report("cancel")
 
     def queue_key_event(self, event):
         """
