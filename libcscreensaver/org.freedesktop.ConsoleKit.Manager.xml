@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node name="/org/freedesktop/ConsoleKit/Manager"
+  xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd"
+>
+
+  <interface name="org.freedesktop.ConsoleKit.Manager">
+    <method name="GetCurrentSession">
+      <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
+      <arg name="ssid" direction="out" type="o">
+        <doc:doc>
+          <doc:summary>The object identifier for the current session</doc:summary>
+        </doc:doc>
+      </arg>
+      <doc:doc>
+        <doc:description>
+          <doc:para>Attempts to determine the session ID that the caller belongs to.
+          </doc:para>
+          <doc:para>See this example of using dbus-send:
+          <doc:example language="shell" title="shell example"><doc:code>
+  dbus-send --system --dest=org.freedesktop.ConsoleKit \
+  --type=method_call --print-reply --reply-timeout=2000 \
+  /org/freedesktop/ConsoleKit/Manager \
+  org.freedesktop.ConsoleKit.Manager.GetCurrentSession
+          </doc:code></doc:example></doc:para>
+        </doc:description>
+      </doc:doc>
+    </method>
+  </interface>
+</node>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<node xmlns:doc="http://www.freedesktop.org/dbus/1.0/doc.dtd">
+
+  <interface name="org.freedesktop.ConsoleKit.Session">
+    <doc:doc>
+      <doc:description>
+        <doc:para>Session objects represent and store information
+        related to a user session.
+        </doc:para>
+        <doc:para>The properties associated with the Session
+        specifically refer to the properties of the "session leader".
+        </doc:para>
+      </doc:description>
+    </doc:doc>
+    <method name="Lock">
+      <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
+      <doc:doc>
+        <doc:description>
+          <doc:para>This will cause a <doc:ref type="signal" to="Session::Lock">Lock</doc:ref>
+          signal to be emitted for this session.
+          </doc:para>
+        </doc:description>
+        <doc:permission>This method is restricted to privileged users by D-Bus policy.</doc:permission>
+        <doc:seealso><doc:ref type="signal" to="Session::Lock">Lock signal</doc:ref></doc:seealso>
+      </doc:doc>
+    </method>
+    <method name="Unlock">
+      <annotation name="org.freedesktop.DBus.GLib.Async" value=""/>
+      <doc:doc>
+        <doc:description>
+          <doc:para>This will cause an <doc:ref type="signal" to="Session::Unlock">Unlock</doc:ref>
+          signal to be emitted for this session.
+          </doc:para>
+          <doc:para>This can be used by login managers to unlock a session before it is
+          re-activated during fast-user-switching.
+          </doc:para>
+        </doc:description>
+        <doc:permission>This method is restricted to privileged users by D-Bus policy.</doc:permission>
+        <doc:seealso><doc:ref type="signal" to="Session::Unlock">Unlock signal</doc:ref></doc:seealso>
+      </doc:doc>
+    </method>
+
+    <signal name="ActiveChanged">
+      <arg name="is_active" type="b">
+        <doc:doc>
+          <doc:summary>TRUE if the session is active, otherwise FALSE</doc:summary>
+        </doc:doc>
+      </arg>
+      <doc:doc>
+        <doc:description>
+          <doc:para>Emitted when the active property has changed.</doc:para>
+        </doc:description>
+      </doc:doc>
+    </signal>
+
+    <signal name="Lock">
+     <doc:doc>
+        <doc:description>
+          <doc:para>Lock the desktop.</doc:para>
+        </doc:description>
+      </doc:doc>
+    </signal>
+
+    <signal name="Unlock">
+     <doc:doc>
+        <doc:description>
+          <doc:para>Unlock the desktop.</doc:para>
+        </doc:description>
+      </doc:doc>
+    </signal>
+  </interface>
+</node>

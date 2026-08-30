@@ -1,0 +1,12 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+                      "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<!-- GDBus 2.48.1 -->
+<node>
+  <interface name="org.Cinnamon">
+    <property type="b" name="OverviewActive" access="readwrite">
+    </property>
+    <property type="b" name="ExpoActive" access="readwrite">
+    </property>
+  </interface>
+  <node name="LookingGlass"/>
+</node>
