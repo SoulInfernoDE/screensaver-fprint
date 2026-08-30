@@ -275,6 +275,8 @@ class UnlockDialog(BaseWindow):
 
             if kind == fingerprintMessages.FAILURE:
                 self.fingerprint_panel.show_failure(display)
+            elif kind == fingerprintMessages.RETRY:
+                self.fingerprint_panel.show_retry(display)
             else:
                 self.fingerprint_panel.show_waiting(display)
 

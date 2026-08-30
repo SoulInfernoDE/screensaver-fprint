@@ -156,6 +156,23 @@ class FingerprintPanel(Gtk.Box):
     def show_failure(self, text):
         self._set_state(FAILED, text)
 
+    def show_retry(self, text):
+        """A retry hint means the previous attempt failed.
+
+        Whether that is news depends on the channel. In the greeter PAM's own
+        "Failed to match fingerprint" arrives first, so the retry is just the
+        reader re-arming. On the lock screen it never arrives at all -
+        cinnamon-screensaver's PAM helper drops PAM_ERROR_MSG without
+        forwarding it - so the retry hint is the *only* evidence the user gets
+        that a finger was rejected, and it has to carry the red.
+
+        One rule covers both: say it failed unless we just said so.
+        """
+        if self.state == FAILED or self.flash_timer != 0:
+            self._set_state(WAITING, text)
+        else:
+            self._set_state(FAILED, text)
+
     def show_success(self, text):
         self._set_state(SUCCESS, text)
 
