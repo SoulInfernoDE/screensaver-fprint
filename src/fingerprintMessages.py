@@ -1,4 +1,21 @@
 #!/usr/bin/python3
+# Copyright (C) 2026 soul-inferno <nofunction@gmx.net>
+#
+# This file is part of screensaver-fprint, a fork of cinnamon-screensaver.
+#
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the Free
+# Software Foundation; either version 2 of the License, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """
 Classification of pam_fprintd's messages.
 

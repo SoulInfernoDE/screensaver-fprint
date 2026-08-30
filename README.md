@@ -1,99 +1,108 @@
-# Cinnamon Screensaver
-![build](https://github.com/linuxmint/cinnamon-screensaver/actions/workflows/build.yml/badge.svg)
+# screensaver-fprint
 
-### Program Entry
+A fork of
+[cinnamon-screensaver](https://github.com/linuxmint/cinnamon-screensaver) that
+gives the lock screen the same fingerprint panel the login screen gets from
+[greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) — one message
+at a time, in German, next to the finger you are actually using.
 
-Main entry is from /usr/bin/cinnamon-screensaver to cinnamon-screensaver-main.py, which
-launches a dbus service (org.cinnamon.Screensaver)
+Unofficial. Not affiliated with, endorsed by, or supported by Linux Mint.
+Upstream's own README is kept as
+[README.cinnamon-screensaver.md](README.cinnamon-screensaver.md).
 
-service.py launches the ScreensaverManager (manager.py), which is central command for all things here, as well as a
-session proxy to listen for idle changes from cinnamon-session, and logind or consolekit proxues.
+![The four states: waiting, rejected, recognised, password fallback](doc/panel.png)
 
-### Running
-At this point we're listening, either for a command sent by the user (like via cinnamon-screensaver-command) or from one
-of our proxies.
+## What it changes
 
-### Locking (active)
-Once a lock command is received, the manager spawns a main window (Stage in stage.py) which covers the entire Gdk screen
-size (an imaginary rectangle containing all monitors).
+| State | What you see |
+|---|---|
+| Waiting | Mint logo glows yellow, breathing |
+| Rejected | Logo flashes red for 1.5 s, then back to waiting |
+| Recognised | Logo glows green for 1.5 s, then the screen unlocks |
+| Reader gave up | Tux swaps the logo for a "Passwort:" sign |
+| Wrong password | The sign stays; only the message goes red |
 
-Think of this overlay as very basic window manager.  Into this overlay it places:
+Upstream routes `pam_fprintd`'s chatter into `authinfo_label`, one line under
+the other, in whatever language happens to arrive. Fingerprint messages now go
+to the panel instead; everything else still reaches the original label
+untouched.
 
-- MonitorViews (monitorView.py) - one for each monitor, painted with the user's background, placed
-  at the exact location of each window.
-- A clock widget, which bounces around mostly randomly around all monitors
-- An unlock widget, which is initially hidden
+Three consequences of that, each a bug in its own right:
 
-At this point we're also now setup to receive user events like button and key presses, and motion events.  This is assisted by the GrabHelper and EventHandler that ensure only those keystrokes we want are allowed, and muffin is blocked from processing global keybindings.
+- `on_authentication_failure()` said **"Incorrect password"** even when nothing
+  had been typed. A rejected finger is now reported as such, and a rejected
+  password still says what it always said.
+- `on_authentication_success()` flashes green and unlocks when the flash has
+  been seen, instead of unlocking out from under it.
+- A prompt arriving after the reader has been talking means `pam_fprintd` used
+  up its tries, which is what puts the sign in Tux's hand — driven by PAM
+  rather than by counting attempts ourselves.
 
-- Any motion is a wake event (show the unlock widget or kill the stage if we're not locked)
-- Any click is a wake event (ditto)
-- Keypresses are first filtered - media keys are checked, and things like volume, brightness controls
-  will not raise the unlock dialog (for now, only if they're simple key combinations - complex ones
-  with modifiers will still do it)
-- key strokes for characters will be forwarded to the dialog - if you start typing your password on a
-  blank screensaver screen, it will be forwarded to the password entry.
+## The upstream bug this had to work around
 
-### Unlocking
-Once the user types their password and hits enter or clicks unlock, we authenticate via a pam helper in cinnamon-desktop.
+`cinnamon-screensaver-pam-helper.c` drops `PAM_ERROR_MSG` without forwarding
+it:
 
-If the authentication is successful, all widgets are destroyed, all grabs released, and we go back
-to the idle listening state.
+```c
+case CS_AUTH_MESSAGE_ERROR_MSG:
+    DEBUG ("CS_AUTH_MESSAGE_ERROR_MSG\n");
+    break;
+```
 
-Files:
+That is exactly how `pam_fprintd` reports "Failed to match fingerprint", so a
+rejected finger reaches the UI as nothing at all — which is why upstream's lock
+screen gives no feedback for one. It affects **every** PAM module's error text
+on this lock screen, not just the reader's.
 
-application.css:  Application priority css, stuff to make the unlock dialog, clock widgets look ok against
-varying backgrounds
+Rather than patch a setuid-root authentication helper, this fork infers the
+rejection from what does arrive: the reader re-arms by re-sending its ordinary
+prompt, and it only re-arms after refusing something. That inference is behind
+an explicit flag (`rearm_means_failure`), set only here — the greeter receives
+the real message and does not need it.
 
-cinnamon-screensaver-command.py:  Send commands to the screensaver via the command line
+## Safety
 
-cinnamon-screensaver-main.py: Main entry point into the program, handles a couple of arguments, adds our css provider, fires up the ScreensaverService.
+Every entry point into the panel is wrapped. This code is an addition to an
+authentication dialog: a panel that fails to update is cosmetic, a lock screen
+that dies is not. Failures are written straight to stderr with
+`traceback.format_exc()`, which also routes around cinnamon-screensaver's own
+`sys.excepthook` — that hook fails while printing and leaves nothing but
+`Original exception was:` in the journal.
 
-baseWindow.py: A base revealer class that the Clock and Unlock widgets implement - any widget that will move around the Stage should implement this (except the monitorViews) - the revealer base lets you do simple fade-ins and fade-outs.
+## Install
 
-cinnamonProxy.py: Connects to Cinnamon's dbus interface, asks Cinnamon to make sure expo or overview are closed (as they make a server grab that we can't wrest focus from, preventing the screensaver from activating).
+The changes are Python only, so no build is needed. **Back up the file you are
+replacing first** — this is the lock screen:
 
-clock.py (inherits BaseWindow): The clock widget that bounces around the screen, this contains all of that.  Positioning is done via a randomizer on a timer that adjusts vertical and horizontal alignment properties (one of
-start, center, or end) along with current monitor, which is used by the Stage positioning function to tell it where to place the Clock widget.
+```bash
+sudo cp /usr/share/cinnamon-screensaver/unlock.py \
+        /usr/share/cinnamon-screensaver/unlock.py.bak-$(date +%Y%m%d%H%M%S)
 
-config.py.in (compiles into config.py): Contains system-specific file locations that are used by various files here.
+sudo install -m 644 src/fingerprintPanel.py src/fingerprintMessages.py src/unlock.py \
+        /usr/share/cinnamon-screensaver/
 
-consoleKitProxy.py: Listens to commands from consolekit over dbus
+cinnamon-screensaver-command --exit
+```
 
-constants.py: A file containing simply a list of hardcoded screens/values that various files here use.
+If the unlock dialog misbehaves: Ctrl+Alt+F2 to a TTY, restore the backup, and
+`pkill -f cinnamon-screensaver`.
 
-eventHandler.py: Gets forwarded all events received from various sources, and acts on them.  Does not propagate except
-in the case of motion.
+`CS_FPRINT_DEBUG=1 cinnamon-screensaver --debug` prints every message the dialog
+receives. Stop the running instance first (`cinnamon-screensaver-command
+--exit`), or the new one cannot take the D-Bus name and exits immediately.
 
-fader.py: A helper for the Stage that uses a frame tick callback to fade the stage in our out over a specific timeframe.  Since it uses the frame clock instead of a GSource, times remain consistent, and only as many frames are drawn as there is time for (a 1 second animation will take one second, but you might not see all 60 frame draws)
+## Artwork and translations
 
-focusNavigator.py: A helper for navigating focus and performing activation on the navigable widgets on the unlock screen.  Since we funnel events so strictly, and don't perform any propagation (to prevent wm or desktop keybindings from triggering) we have to manage the focus ourselves, as well as performing activation on the focused widget when enter or space is pressed.
+Both are shared with greeter-fprint rather than duplicated: Tux is loaded from
+`/usr/share/greeter-fprint/tux-fprint.svg` (with an in-tree fallback path), and
+the strings come from that project's gettext catalogue, bound as `_p()` — not
+`_`, because cinnamon-screensaver installs its own `_` into builtins and
+shadowing it would silently untranslate the rest of the dialog.
 
-grabHelper.py: A helper for achieving exclusive mouse and key grabs, as well as hiding the mouse pointer when appropriate.
+## Licence
 
-keybindings.py: gets fed key events from the EventHandler, and acts on them or not - allows certain media keys, handles escape, enter, space events.
+GPL-2+, like cinnamon-screensaver. See [COPYING](COPYING) and
+[COPYRIGHT.md](COPYRIGHT.md).
 
-logindProxy.py: Listens to commands from logind over dbus
-
-manager.py: This is the head honcho, the big cheese, el numero uno.  It spawns the GrabHelper, FocusNavigator, along with the session and logind/ck proxies.  It acts on commands received from there, as well as our own dbus service (ScreensaverService).  It manages all the flags in status.py, spawns and despawns the stage.
-
-monitorView.py: This is a widget that gets placed in the stage that provides the backgrounds or screensaver plugin view.  There is one per monitor, and they are positioned directly where each monitor is by the Stage positioning function.  It handles transitioning between backgrounds (during a slideshow) and transitioning between plugins and wallpaper.
-
-service.py: This is our implementation of the dbus service "org.cinnamon.Screensaver" - commands received via this interface are sent to the manager for answers and action.  This spawns the manager.
-
-sessionProxy.py: Listens to cinnamon-session for idle changes and notifies the manager when they change.
-
-settings.py: holds our GSettings instances, as well as getters for each of the different keys.  Also takes care of our CinnamonDesktop BG instance, and updates it when settings change.
-
-stage.py: This is our toplevel window, a GtkWindow.  It is made the size of the GdkScreen (a theoretical rectangle that exactly encompasses all monitors).  At its core is a GtkOverlay, which we sort of use like a window manager.  The position_overlay_child callback is used to position our children (Clock, UnlockWidget, MonitorView).  A forced call to this position function can be done via overlay.queue_resize().  This class talks fairly freely with the manager, even though it is spawned and despawned by the manager repeatedly (when the screensaver is activated/deactivated)
-
-status.py: A global state tracker, used by many widgets - Active means the screensaver stage exists, and we're displaying wallpaper or whatever.  Locked means we will need to enter our password to unlock.  Awake means the unlock dialog is currently shown.  focusChain is where a list of focusable widgets should be stored that tab will navigate between. (This is currently done just in the UnlockDialog)
-
-trackers.py: A utility for easy tracking of timers and signal connections.  It basically performs any cleanup for you, with no need to track source ids or signal ids generally.
-
-unlock.py: Provides the unlock dialog, including the user image, name, password entry and buttons
-
-utils.py: Various utilities that seem best to keep in one place.
-
-x11.py: X11-specific focus helper function - optional, python3-xlib doesn't exist everywhere yet.
-
+Tux is the Linux mascot created by Larry Ewing. The Linux Mint logo is not in
+this repository; the panel uses the system's installed icon at runtime.
