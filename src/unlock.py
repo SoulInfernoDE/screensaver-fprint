@@ -207,19 +207,31 @@ class UnlockDialog(BaseWindow):
         self.auth_unlock_button.hide()
 
     def initialize_auth_client(self):
-        # A fresh conversation starts here (the stage calls this when it raises
-        # the dialog), so the panel's idea of what has happened so far has to
-        # start fresh too. Without this, fingerprint_active stayed true forever
-        # after the first fingerprint session and a plain wrong password later
-        # was reported as a rejected finger.
-        try:
-            self.fingerprint_active = False
-            self.password_prompted = False
-            self.fingerprint_panel.reset()
-        except Exception:
-            fprint_report("initialize_auth_client")
+        # The panel's idea of what has happened so far has to start fresh with
+        # each conversation - without that, fingerprint_active stayed true
+        # forever after the first fingerprint session, and a plain wrong
+        # password later was reported as a rejected finger.
+        #
+        # Careful: the manager calls this on *every* user activity while locked
+        # (manager.py, the "user activity, waking" path), not once per lock.
+        # AuthClient.initialize() knows that and returns early when a helper is
+        # already running - so the reset has to ask the same question, or every
+        # mouse move wipes the panel mid-conversation. That is exactly what it
+        # did: the logo vanished the moment the user reached for the keyboard
+        # at the password prompt, and came back with the next reader message.
+        starting_fresh = not self.auth_client.initialized
 
-        return self.auth_client.initialize()
+        result = self.auth_client.initialize()
+
+        if starting_fresh:
+            try:
+                self.fingerprint_active = False
+                self.password_prompted = False
+                self.fingerprint_panel.reset()
+            except Exception:
+                fprint_report("initialize_auth_client")
+
+        return result
 
     def on_authentication_success(self, auth_client):
         self.set_busy(False)
