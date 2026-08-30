@@ -15,6 +15,8 @@ from widgets.framedImage import FramedImage
 from passwordEntry import PasswordEntry
 from pamhelper.authClient import AuthClient
 from widgets.transparentButton import TransparentButton
+from fingerprintPanel import FingerprintPanel
+import fingerprintMessages
 
 class UnlockDialog(BaseWindow):
     """
@@ -68,6 +70,16 @@ class UnlockDialog(BaseWindow):
         self.realname_label.set_halign(Gtk.Align.CENTER)
 
         self.box.pack_start(self.realname_label, False, False, 10)
+
+        # The fingerprint panel sits between the user's name and the password
+        # row: it is the thing to look at while the reader is armed, and it
+        # takes no space at all until the reader says something.
+        self.fingerprint_panel = FingerprintPanel()
+        self.fingerprint_active = False
+        trackers.con_tracker_get().connect(self.fingerprint_panel,
+                                           "success-finished",
+                                           self.on_fingerprint_success_finished)
+        self.box.pack_start(self.fingerprint_panel, False, False, 4)
 
         self.entry_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, halign=Gtk.Align.CENTER)
 
@@ -179,6 +191,17 @@ class UnlockDialog(BaseWindow):
 
     def on_authentication_success(self, auth_client):
         self.set_busy(False)
+
+        if self.fingerprint_active:
+            # Green first, unlock when it has been seen - same 1.5s as the
+            # login screen, so both give the same feedback for the same act.
+            self.fingerprint_panel.show_success(
+                fingerprintMessages._p("Fingerprint recognised"))
+            return
+
+        self.emit("authenticate-success")
+
+    def on_fingerprint_success_finished(self, panel):
         self.emit("authenticate-success")
 
     def on_authentication_failure(self, auth_client):
@@ -187,7 +210,14 @@ class UnlockDialog(BaseWindow):
         and refocuses the password entry.
         """
         self.set_busy(False)
-        self.auth_message_label.set_text(_("Incorrect password"))
+
+        if self.fingerprint_active:
+            # Nothing was typed, so "Incorrect password" would be a lie. The
+            # verdict belongs on the panel, where the finger was.
+            self.fingerprint_panel.show_failure(
+                fingerprintMessages._p("Fingerprint not recognised"))
+        else:
+            self.auth_message_label.set_text(_("Incorrect password"))
 
         self.password_entry.hide()
         self.auth_unlock_button.hide()
@@ -216,6 +246,12 @@ class UnlockDialog(BaseWindow):
             self.update_authinfo_label()
 
     def on_authentication_prompt_changed(self, auth_client, prompt):
+        # A prompt arriving after the reader has been talking means
+        # pam_fprintd used up its tries and PAM fell through to the password.
+        if self.fingerprint_active:
+            self.fingerprint_panel.show_password_fallback(
+                fingerprintMessages._p("Please use your password"))
+
         self.password_entry.show_all()
         self.auth_unlock_button.show_all()
 
@@ -228,6 +264,22 @@ class UnlockDialog(BaseWindow):
         self.password_entry.set_placeholder_text(self.password_entry.placeholder_text)
 
     def on_authentication_info_changed(self, auth_client, info):
+        # pam_fprintd's chatter arrives here as PAM_TEXT_INFO. It goes to the
+        # panel instead of the info label: one message at a time, in German,
+        # and next to the finger the user is actually using.
+        classified = fingerprintMessages.classify(info)
+
+        if classified is not None:
+            kind, display = classified
+            self.fingerprint_active = True
+
+            if kind == fingerprintMessages.FAILURE:
+                self.fingerprint_panel.show_failure(display)
+            else:
+                self.fingerprint_panel.show_waiting(display)
+
+            return
+
         self.auth_info = info
         self.update_authinfo_label()
 
