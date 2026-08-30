@@ -56,14 +56,30 @@ MINT_LOGO = "/usr/share/icons/hicolor/scalable/apps/linuxmint-logo-badge-symboli
 TUX_WIDTH = 132
 LOGO_SIZE = int(TUX_WIDTH * 0.26)
 
-# Where the raised flipper's tip is, as a fraction of the artwork's viewBox.
-HAND_X = 0.155
-HAND_Y = 0.235
+# Room for the glow: it hangs above and outside Tux's own outline, and would
+# otherwise be clipped by the drawing area.
+TOP_PAD = int(LOGO_SIZE * 0.9)
+SIDE_PAD = int(LOGO_SIZE * 1.6)
+
+# Where the logo hangs, as a fraction of the artwork's viewBox: just beyond the
+# raised flipper's tip, above and to the left of the head. Keep in sync with
+# tux-fprint.svg.
+HAND_X = 0.105
+HAND_Y = 0.085
 
 COLOURS = {
     FAILED:  (0.90, 0.22, 0.21),
     SUCCESS: (0.24, 0.72, 0.34),
     WAITING: (1.00, 0.80, 0.10),
+}
+
+# The message takes the colour the logo has right now - the sentence and the
+# glow are one signal, not two. PASSWORD has no signal colour, so it is white.
+LABEL_COLOURS = {
+    FAILED:   "#e63836",
+    SUCCESS:  "#3db857",
+    PASSWORD: "#ffffff",
+    WAITING:  "#ffcc1a",
 }
 
 
@@ -89,7 +105,7 @@ class FingerprintPanel(Gtk.Box):
 
         self.canvas = Gtk.DrawingArea()
         height = self.tux.get_height() if self.tux else 150
-        self.canvas.set_size_request(TUX_WIDTH + 50, height + 12)
+        self.canvas.set_size_request(TUX_WIDTH + 2 * SIDE_PAD, height + TOP_PAD + 12)
         self.canvas.connect("draw", self.on_draw)
         self.canvas.show()
         self.pack_start(self.canvas, False, False, 0)
@@ -97,9 +113,24 @@ class FingerprintPanel(Gtk.Box):
         self.message_label = Gtk.Label("")
         self.message_label.set_halign(Gtk.Align.CENTER)
         self.message_label.set_justify(Gtk.Justification.CENTER)
-        self.message_label.get_style_context().add_class("auth-message")
+
+        # NOT the "auth-message" class: in cinnamon-screensaver's theme that is
+        # the error label, which is red whatever it says - so every fingerprint
+        # message came out looking like a failure. Own provider, colour follows
+        # the state instead.
+        self.label_style = Gtk.CssProvider()
+        self.message_label.get_style_context().add_provider(
+            self.label_style, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        self._apply_label_colour()
+
         self.message_label.show()
         self.pack_start(self.message_label, False, False, 0)
+
+    def _apply_label_colour(self):
+        colour = LABEL_COLOURS.get(self.state, LABEL_COLOURS[WAITING])
+        css = ("label { color: %s; font-size: 15px; font-weight: 500;"
+               " text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75); }" % colour)
+        self.label_style.load_from_data(css.encode())
 
     # --- loading ---------------------------------------------------------
 
@@ -171,6 +202,7 @@ class FingerprintPanel(Gtk.Box):
         if new_state in (FAILED, SUCCESS):
             self.flash_timer = GLib.timeout_add(FLASH_MS, self._flash_done, new_state)
 
+        self._apply_label_colour()
         self.canvas.queue_draw()
 
     def _flash_done(self, flashed_state):
@@ -188,6 +220,7 @@ class FingerprintPanel(Gtk.Box):
             # Nothing queued: back to waiting, pam_fprintd retries on its own.
             self.state = WAITING
             self._start_pulse()
+            self._apply_label_colour()
             self.canvas.queue_draw()
 
         return GLib.SOURCE_REMOVE
@@ -219,7 +252,7 @@ class FingerprintPanel(Gtk.Box):
 
         alloc = widget.get_allocation()
         tux_x = (alloc.width - self.tux.get_width()) / 2.0
-        tux_y = 6.0
+        tux_y = float(TOP_PAD)
 
         Gdk.cairo_set_source_pixbuf(cr, self.tux, tux_x, tux_y)
         cr.paint()
