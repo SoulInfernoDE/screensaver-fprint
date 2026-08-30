@@ -4,6 +4,8 @@
 import gi
 
 from gi.repository import Gtk, Gdk, GObject, CScreensaver, Gio
+import os
+import sys
 import traceback
 
 
@@ -75,6 +77,9 @@ class UnlockDialog(BaseWindow):
         # row: it is the thing to look at while the reader is armed, and it
         # takes no space at all until the reader says something.
         self.fingerprint_panel = FingerprintPanel()
+        # See the flag's definition: on this screen a rejected finger leaves no
+        # other trace, because the PAM helper drops PAM_ERROR_MSG.
+        self.fingerprint_panel.rearm_means_failure = True
         self.fingerprint_active = False
         trackers.con_tracker_get().connect(self.fingerprint_panel,
                                            "success-finished",
@@ -264,6 +269,9 @@ class UnlockDialog(BaseWindow):
         self.password_entry.set_placeholder_text(self.password_entry.placeholder_text)
 
     def on_authentication_info_changed(self, auth_client, info):
+        if os.environ.get("CS_FPRINT_DEBUG"):
+            print("fprint-panel: info=%r" % info, file=sys.stderr, flush=True)
+
         # pam_fprintd's chatter arrives here as PAM_TEXT_INFO. It goes to the
         # panel instead of the info label: one message at a time, in German,
         # and next to the finger the user is actually using.

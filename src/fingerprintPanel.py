@@ -100,6 +100,17 @@ class FingerprintPanel(Gtk.Box):
         self.flash_timer = 0
         self.pending = None          # (state, text) queued during a flash
 
+        # Whether a re-arm ("place your finger" arriving while we are already
+        # waiting) should be read as "the last finger was rejected".
+        #
+        # It should here, and only here. pam_fprintd reports a rejection as
+        # PAM_ERROR_MSG and then re-arms by re-sending the ordinary prompt -
+        # and cinnamon-screensaver's PAM helper drops PAM_ERROR_MSG without
+        # forwarding it, so the repeat is the only trace the rejection leaves.
+        # The greeter gets the real message and leaves this off, rather than
+        # inferring the same thing twice.
+        self.rearm_means_failure = False
+
         self.tux = self._load_tux()
         self.logo = self._load(MINT_LOGO, LOGO_SIZE, LOGO_SIZE)
 
@@ -151,6 +162,14 @@ class FingerprintPanel(Gtk.Box):
     # --- state transitions ------------------------------------------------
 
     def show_waiting(self, text):
+        if (self.rearm_means_failure
+                and self.state == WAITING
+                and self.flash_timer == 0):
+            # The reader only re-arms after rejecting something.
+            self._set_state(FAILED, _p("Fingerprint not recognised"))
+            self._set_state(WAITING, text)   # queued behind the flash
+            return
+
         self._set_state(WAITING, text)
 
     def show_failure(self, text):
