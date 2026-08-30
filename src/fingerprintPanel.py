@@ -259,21 +259,28 @@ class FingerprintPanel(Gtk.Box):
             self.emit("success-finished")
             return GLib.SOURCE_REMOVE
 
-        if flashed_state == PASSWORD_FAILED:
-            # Back to the standing "use your password" state, sign and all.
-            self._set_state(PASSWORD, self.password_text)
-            return GLib.SOURCE_REMOVE
-
+        # Whatever arrived during the flash wins, whichever flash it was. After
+        # a wrong password PAM restarts the conversation and arms the reader
+        # again, and that "place your finger" lands here - queued behind the
+        # red. Forcing the sign back up regardless (which is what this did)
+        # left the panel asking for a password while the reader was in fact
+        # waiting for a finger.
         if self.pending is not None:
             state, text = self.pending
             self.pending = None
             self._set_state(state, text)
-        else:
-            # Nothing queued: back to waiting, pam_fprintd retries on its own.
-            self.state = WAITING
-            self._start_pulse()
-            self._apply_label_colour()
-            self.canvas.queue_draw()
+            return GLib.SOURCE_REMOVE
+
+        if flashed_state == PASSWORD_FAILED:
+            # Nothing queued: still the password's turn, sign and all.
+            self._set_state(PASSWORD, self.password_text)
+            return GLib.SOURCE_REMOVE
+
+        # Nothing queued: back to waiting, pam_fprintd retries on its own.
+        self.state = WAITING
+        self._start_pulse()
+        self._apply_label_colour()
+        self.canvas.queue_draw()
 
         return GLib.SOURCE_REMOVE
 

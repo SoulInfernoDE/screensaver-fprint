@@ -344,6 +344,12 @@ class UnlockDialog(BaseWindow):
                 kind, display = classified
                 self.fingerprint_active = True
 
+                # The reader is what's being asked for now. Without this the
+                # flag stayed true from the password phase for the rest of the
+                # conversation, and a rejected finger after a wrong password
+                # would have been reported as a bad password.
+                self.password_prompted = False
+
                 if kind == fingerprintMessages.FAILURE:
                     self.fingerprint_panel.show_failure(display)
                 elif kind == fingerprintMessages.RETRY:
