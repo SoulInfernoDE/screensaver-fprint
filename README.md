@@ -10,7 +10,13 @@ Unofficial. Not affiliated with, endorsed by, or supported by Linux Mint.
 Upstream's own README is kept as
 [README.cinnamon-screensaver.md](README.cinnamon-screensaver.md).
 
-![The four states: waiting, rejected, recognised, password fallback](doc/panel.png)
+![The panel cycling through its states: yellow while the reader waits, red for
+a rejected finger, green for a recognised one, then the "Passwort:" sign and a
+rejected password](doc/states.gif)
+
+Rendered with the panel's own drawing code, so the timings are the real ones:
+each flash holds for 1.5 s, and the yellow breathes while the reader waits.
+Stills of the four main states: [doc/panel.png](doc/panel.png).
 
 ## What it changes
 
