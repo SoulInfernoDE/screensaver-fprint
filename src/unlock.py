@@ -81,6 +81,7 @@ class UnlockDialog(BaseWindow):
         # other trace, because the PAM helper drops PAM_ERROR_MSG.
         self.fingerprint_panel.rearm_means_failure = True
         self.fingerprint_active = False
+        self.password_prompted = False
         trackers.con_tracker_get().connect(self.fingerprint_panel,
                                            "success-finished",
                                            self.on_fingerprint_success_finished)
@@ -192,6 +193,15 @@ class UnlockDialog(BaseWindow):
         self.auth_unlock_button.hide()
 
     def initialize_auth_client(self):
+        # A fresh conversation starts here (the stage calls this when it raises
+        # the dialog), so the panel's idea of what has happened so far has to
+        # start fresh too. Without this, fingerprint_active stayed true forever
+        # after the first fingerprint session and a plain wrong password later
+        # was reported as a rejected finger.
+        self.fingerprint_active = False
+        self.password_prompted = False
+        self.fingerprint_panel.reset()
+
         return self.auth_client.initialize()
 
     def on_authentication_success(self, auth_client):
@@ -216,7 +226,17 @@ class UnlockDialog(BaseWindow):
         """
         self.set_busy(False)
 
-        if self.fingerprint_active:
+        # Which credential actually failed? Once the password prompt has been
+        # shown, the attempt that just failed was a typed password - the finger
+        # had nothing to do with it. Reporting "Fingerprint not recognised"
+        # there was simply wrong.
+        if self.password_prompted:
+            if self.fingerprint_panel.is_active():
+                self.fingerprint_panel.show_password_failure(
+                    fingerprintMessages._p("Password not recognised"))
+            else:
+                self.auth_message_label.set_text(_("Incorrect password"))
+        elif self.fingerprint_active:
             # Nothing was typed, so "Incorrect password" would be a lie. The
             # verdict belongs on the panel, where the finger was.
             self.fingerprint_panel.show_failure(
@@ -253,6 +273,8 @@ class UnlockDialog(BaseWindow):
     def on_authentication_prompt_changed(self, auth_client, prompt):
         # A prompt arriving after the reader has been talking means
         # pam_fprintd used up its tries and PAM fell through to the password.
+        self.password_prompted = True
+
         if self.fingerprint_active:
             self.fingerprint_panel.show_password_fallback(
                 fingerprintMessages._p("Please use your password"))
@@ -299,6 +321,9 @@ class UnlockDialog(BaseWindow):
         """
         self.auth_client.cancel()
         self.clear_entry()
+        self.fingerprint_active = False
+        self.password_prompted = False
+        self.fingerprint_panel.reset()
 
     def queue_key_event(self, event):
         """

@@ -39,6 +39,10 @@ WAITING = "waiting"
 FAILED = "failed"
 SUCCESS = "success"
 PASSWORD = "password"
+# Wrong password, not wrong finger: the sign stays up - we are still in
+# password mode - and only the message goes red. Flashing the logo would say
+# "your finger was rejected", which is not what happened.
+PASSWORD_FAILED = "password-failed"
 
 # The spec is 1.5s for both flashes. SUCCESS spends it before the screen
 # actually unlocks, so it is a real (deliberate) delay.
@@ -76,10 +80,11 @@ COLOURS = {
 # The message takes the colour the logo has right now - the sentence and the
 # glow are one signal, not two. PASSWORD has no signal colour, so it is white.
 LABEL_COLOURS = {
-    FAILED:   "#e63836",
-    SUCCESS:  "#3db857",
-    PASSWORD: "#ffffff",
-    WAITING:  "#ffcc1a",
+    FAILED:          "#e63836",
+    PASSWORD_FAILED: "#e63836",
+    SUCCESS:         "#3db857",
+    PASSWORD:        "#ffffff",
+    WAITING:         "#ffcc1a",
 }
 
 
@@ -99,6 +104,7 @@ class FingerprintPanel(Gtk.Box):
         self.pulse_timer = 0
         self.flash_timer = 0
         self.pending = None          # (state, text) queued during a flash
+        self.password_text = ""      # restored after a PASSWORD_FAILED flash
 
         # Whether a re-arm ("place your finger" arriving while we are already
         # waiting) should be read as "the last finger was rejected".
@@ -196,7 +202,12 @@ class FingerprintPanel(Gtk.Box):
         self._set_state(SUCCESS, text)
 
     def show_password_fallback(self, text):
+        self.password_text = text
         self._set_state(PASSWORD, text)
+
+    def show_password_failure(self, text):
+        """The typed password was wrong - the finger had nothing to do with it."""
+        self._set_state(PASSWORD_FAILED, text)
 
     def reset(self):
         self._set_state(HIDDEN, "")
@@ -208,7 +219,7 @@ class FingerprintPanel(Gtk.Box):
         # A flash owns the panel for its full FLASH_MS; see the module
         # docstring for why. Another failure restarts it, reset() is a hard
         # stop that clears the queue.
-        if self.flash_timer != 0 and new_state not in (HIDDEN, FAILED):
+        if self.flash_timer != 0 and new_state not in (HIDDEN, FAILED, PASSWORD_FAILED):
             self.pending = (new_state, text)
             return
 
@@ -235,7 +246,7 @@ class FingerprintPanel(Gtk.Box):
         else:
             self._stop_pulse()
 
-        if new_state in (FAILED, SUCCESS):
+        if new_state in (FAILED, SUCCESS, PASSWORD_FAILED):
             self.flash_timer = GLib.timeout_add(FLASH_MS, self._flash_done, new_state)
 
         self._apply_label_colour()
@@ -246,6 +257,11 @@ class FingerprintPanel(Gtk.Box):
 
         if flashed_state == SUCCESS:
             self.emit("success-finished")
+            return GLib.SOURCE_REMOVE
+
+        if flashed_state == PASSWORD_FAILED:
+            # Back to the standing "use your password" state, sign and all.
+            self._set_state(PASSWORD, self.password_text)
             return GLib.SOURCE_REMOVE
 
         if self.pending is not None:
@@ -296,7 +312,7 @@ class FingerprintPanel(Gtk.Box):
         hx = tux_x + self.tux.get_width() * HAND_X
         hy = tux_y + self.tux.get_height() * HAND_Y
 
-        if self.state == PASSWORD:
+        if self.state in (PASSWORD, PASSWORD_FAILED):
             self._draw_sign(cr, hx, hy)
         else:
             r, g, b = COLOURS.get(self.state, COLOURS[WAITING])
