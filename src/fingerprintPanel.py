@@ -376,10 +376,6 @@ class FingerprintPanel(Gtk.Box):
         radius = 8
         x, y = hx - width / 2, hy - height / 2
 
-        cr.set_source_rgba(0.42, 0.31, 0.20, 1.0)
-        cr.rectangle(hx - 3, y + height - 4, 6, 24)
-        cr.fill()
-
         cr.new_sub_path()
         cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
         cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
