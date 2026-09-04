@@ -105,6 +105,16 @@ the strings come from that project's gettext catalogue, bound as `_p()` — not
 `_`, because cinnamon-screensaver installs its own `_` into builtins and
 shadowing it would silently untranslate the rest of the dialog.
 
+## Translations
+
+The strings come from greeter-fprint's catalogue (see that project's README for
+the full picture). Short version: everything inherited from upstream is
+translated everywhere - the "Password:" on Tux's sign included - while the
+fifteen strings the panel itself produces exist in German and fall back to
+their English msgid elsewhere. Contributions in languages their authors
+actually speak are welcome; machine translation on a lock screen is worse than
+plain English.
+
 ## Licence
 
 GPL-2+, like cinnamon-screensaver. See [COPYING](COPYING) and
