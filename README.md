@@ -115,6 +115,19 @@ their English msgid elsewhere. Contributions in languages their authors
 actually speak are welcome; machine translation on a lock screen is worse than
 plain English.
 
+## For Linux Mint
+
+Everything original to this fork - the code and the ideas behind it - is offered
+to the Linux Mint project to use, adapt, relicense and ship in whatever way
+suits them. No need to ask, no attribution required, no strings. A change that
+lands in cinnamon-screensaver itself helps more people than this repository ever
+will, so please take anything that is useful - the `PAM_ERROR_MSG` bug above
+first of all.
+
+That grant covers what is ours to give: the changes made in this repository.
+Code inherited from cinnamon-screensaver keeps its own licence and its own
+copyright holders. See [COPYRIGHT.md](COPYRIGHT.md).
+
 ## Licence
 
 GPL-2+, like cinnamon-screensaver. See [COPYING](COPYING) and
