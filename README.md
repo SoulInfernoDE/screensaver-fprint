@@ -1,84 +1,49 @@
 # screensaver-fprint
 
+***English** · [Deutsch](README.de.md)*
+
+Fingerprint unlock for the Cinnamon lock screen that says what it is doing.
+
 A fork of
-[cinnamon-screensaver](https://github.com/linuxmint/cinnamon-screensaver) that
-gives the lock screen the same fingerprint panel the login screen gets from
-[greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) — one message
-at a time, in German, next to the finger you are actually using.
+[cinnamon-screensaver](https://github.com/linuxmint/cinnamon-screensaver), with
+the same panel [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint)
+puts on the login screen. Unofficial: not affiliated with, endorsed by, or
+supported by Linux Mint.
 
-Unofficial. Not affiliated with, endorsed by, or supported by Linux Mint.
-Upstream's own README is kept as
-[README.cinnamon-screensaver.md](README.cinnamon-screensaver.md).
+![The panel cycling through its states: yellow while the reader waits, red for a
+rejected finger, green for a recognised one, then the password sign and a
+rejected password](docs/states.gif)
 
-![The panel cycling through its states: yellow while the reader waits, red for
-a rejected finger, green for a recognised one, then the "Passwort:" sign and a
-rejected password](doc/states.gif)
+## Why
 
-Rendered with the panel's own drawing code, so the timings are the real ones:
-each flash holds for 1.5 s, and the yellow breathes while the reader waits.
-Stills of the four main states: [doc/panel.png](doc/panel.png).
+On the stock Cinnamon lock screen:
 
-## What it changes
+- **A rejected finger shows nothing at all.** The reader's error never reaches
+  the screen, so a miss looks exactly like a reader that is not listening.
+- **Or it says "Incorrect password"** — although you typed nothing.
+- **Messages pile up**, one under the other.
 
-| State | What you see |
-|---|---|
-| Waiting | Mint logo glows yellow, breathing |
-| Rejected | Logo flashes red for 1.5 s, then back to waiting |
-| Recognised | Logo glows green for 1.5 s, then the screen unlocks |
-| Reader gave up | Tux swaps the logo for a "Passwort:" sign |
-| Wrong password | The sign stays; only the message goes red |
+screensaver-fprint shows exactly one message at a time:
 
-Upstream routes `pam_fprintd`'s chatter into `authinfo_label`, one line under
-the other, in whatever language happens to arrive. Fingerprint messages now go
-to the panel instead; everything else still reaches the original label
-untouched.
+| | |
+| --- | --- |
+| **Yellow** | the reader is waiting |
+| **Red** | finger not recognised — back to yellow after 1.5 s |
+| **Green** | finger recognised — the screen unlocks |
+| **Password sign** | the reader gave up; type your password |
+| **Sign, red message** | wrong password |
 
-Three consequences of that, each a bug in its own right:
+## Requirements
 
-- `on_authentication_failure()` said **"Incorrect password"** even when nothing
-  had been typed. A rejected finger is now reported as such, and a rejected
-  password still says what it always said.
-- `on_authentication_success()` flashes green and unlocks when the flash has
-  been seen, instead of unlocking out from under it.
-- A prompt arriving after the reader has been talking means `pam_fprintd` used
-  up its tries, which is what puts the sign in Tux's hand — driven by PAM
-  rather than by counting attempts ourselves.
-
-## The upstream bug this had to work around
-
-`cinnamon-screensaver-pam-helper.c` drops `PAM_ERROR_MSG` without forwarding
-it:
-
-```c
-case CS_AUTH_MESSAGE_ERROR_MSG:
-    DEBUG ("CS_AUTH_MESSAGE_ERROR_MSG\n");
-    break;
-```
-
-That is exactly how `pam_fprintd` reports "Failed to match fingerprint", so a
-rejected finger reaches the UI as nothing at all — which is why upstream's lock
-screen gives no feedback for one. It affects **every** PAM module's error text
-on this lock screen, not just the reader's.
-
-Rather than patch a setuid-root authentication helper, this fork infers the
-rejection from what does arrive: the reader re-arms by re-sending its ordinary
-prompt, and it only re-arms after refusing something. That inference is behind
-an explicit flag (`rearm_means_failure`), set only here — the greeter receives
-the real message and does not need it.
-
-## Safety
-
-Every entry point into the panel is wrapped. This code is an addition to an
-authentication dialog: a panel that fails to update is cosmetic, a lock screen
-that dies is not. Failures are written straight to stderr with
-`traceback.format_exc()`, which also routes around cinnamon-screensaver's own
-`sys.excepthook` — that hook fails while printing and leaves nothing but
-`Original exception was:` in the journal.
+- Cinnamon and a working fingerprint setup: `fprintd`, `libpam-fprintd`, an
+  enrolled finger
+- [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) installed —
+  the lock screen takes Tux and the translations from it
 
 ## Install
 
-The changes are Python only, so no build is needed. **Back up the file you are
-replacing first** — this is the lock screen:
+Python only, nothing to build. **Back up the file you replace first** — this is
+the lock screen:
 
 ```bash
 sudo cp /usr/share/cinnamon-screensaver/unlock.py \
@@ -90,48 +55,31 @@ sudo install -m 644 src/fingerprintPanel.py src/fingerprintMessages.py src/unloc
 cinnamon-screensaver-command --exit
 ```
 
-If the unlock dialog misbehaves: Ctrl+Alt+F2 to a TTY, restore the backup, and
-`pkill -f cinnamon-screensaver`.
+If the lock screen misbehaves: switch to a text console (Ctrl+Alt+F2), restore
+the backup and run `pkill -f cinnamon-screensaver`.
 
-`CS_FPRINT_DEBUG=1 cinnamon-screensaver --debug` prints every message the dialog
-receives. Stop the running instance first (`cinnamon-screensaver-command
---exit`), or the new one cannot take the D-Bus name and exits immediately.
+## How it works
 
-## Artwork and translations
+| | |
+| --- | --- |
+| [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md) | the upstream bug that swallows the reader's error, how the panel works around it, safety, debugging |
 
-Both are shared with greeter-fprint rather than duplicated: Tux is loaded from
-`/usr/share/greeter-fprint/tux-fprint.svg` (with an in-tree fallback path), and
-the strings come from that project's gettext catalogue, bound as `_p()` — not
-`_`, because cinnamon-screensaver installs its own `_` into builtins and
-shadowing it would silently untranslate the rest of the dialog.
+Also available in German; the link sits at the top.
 
-## Translations
+## Related
 
-The strings come from greeter-fprint's catalogue (see that project's README for
-the full picture). Short version: everything inherited from upstream is
-translated everywhere - the "Password:" on Tux's sign included - while the
-fifteen strings the panel itself produces exist in German and fall back to
-their English msgid elsewhere. Contributions in languages their authors
-actually speak are welcome; machine translation on a lock screen is worse than
-plain English.
+[greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) — the same
+panel for the LightDM login screen.
 
 ## For Linux Mint
 
-Everything original to this fork - the code and the ideas behind it - is offered
-to the Linux Mint project to use, adapt, relicense and ship in whatever way
-suits them. No need to ask, no attribution required, no strings. A change that
-lands in cinnamon-screensaver itself helps more people than this repository ever
-will, so please take anything that is useful - the `PAM_ERROR_MSG` bug above
-first of all.
+Everything new in this fork may be used, adapted and relicensed by Linux Mint
+freely, without asking and without attribution — the `PAM_ERROR_MSG` fix first
+of all. The exact scope is in [COPYRIGHT.md](COPYRIGHT.md).
 
-That grant covers what is ours to give: the changes made in this repository.
-Code inherited from cinnamon-screensaver keeps its own licence and its own
-copyright holders. See [COPYRIGHT.md](COPYRIGHT.md).
+## License
 
-## Licence
-
-GPL-2+, like cinnamon-screensaver. See [COPYING](COPYING) and
-[COPYRIGHT.md](COPYRIGHT.md).
-
-Tux is the Linux mascot created by Larry Ewing. The Linux Mint logo is not in
-this repository; the panel uses the system's installed icon at runtime.
+GPL-2+, like cinnamon-screensaver — see [COPYING](COPYING) and
+[COPYRIGHT.md](COPYRIGHT.md). Tux is the Linux mascot created by Larry Ewing; the
+Linux Mint logo is not in this repository but loaded from the system at runtime.
+Upstream's own README: [README.cinnamon-screensaver.md](README.cinnamon-screensaver.md).

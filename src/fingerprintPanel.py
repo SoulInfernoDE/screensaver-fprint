@@ -25,7 +25,7 @@ so the lock screen and the login screen tell the user the same story:
     WAITING   Mint logo glows yellow, breathing, while the reader waits.
     FAILED    Mint logo flashes red for FLASH_MS, then back to WAITING.
     SUCCESS   Mint logo glows green for FLASH_MS, then success_finished.
-    PASSWORD  Tux swaps the logo for a "Passwort:" sign, because the reader
+    PASSWORD  Tux swaps the logo for a "Password:" sign, because the reader
               gave up and PAM fell through to the password.
 
 A flash owns the panel for its full duration: pam_fprintd sends "Failed to

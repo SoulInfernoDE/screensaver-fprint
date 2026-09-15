@@ -28,7 +28,10 @@ Unlike in the greeter, the strings here may well arrive *translated*: the
 screensaver's PAM helper runs inside a process that does call setlocale(), so
 pam_fprintd's own gettext can fire if a fprintd translation happens to be
 installed. That is why matching is done against both the English msgids and
-the German wording - whichever arrives, the same state comes out.
+fprintd's German wording - whichever arrives, the same state comes out.
+
+Matching is the only place German appears here. Everything shown to the user
+comes from the catalogue, with English as the base and fallback.
 
 classify() returns None when the message is not fingerprint-related; the
 caller then handles it exactly as before.
@@ -49,18 +52,47 @@ RETRY = "retry"       # scan didn't take; try again, still armed
 FAILURE = "failure"   # this attempt is over and failed
 
 # Longest first: "left index finger" has to win over a bare "finger".
+#
+# Each pair is for *recognising* a message: the English pam_fprintd sends
+# untranslated, and the German an installed fprintd translation sends
+# instead. Neither half is ever shown. That used to be the German half, pasted
+# into an already translated sentence - so on every non-German system the
+# panel said "Place your rechten Daumen on the reader". The name shown now
+# comes from _finger_label().
 _FINGERS = [
-    ("left index finger", "linken Zeigefinger"),
-    ("left middle finger", "linken Mittelfinger"),
-    ("left ring finger", "linken Ringfinger"),
-    ("left little finger", "linken kleinen Finger"),
-    ("right index finger", "rechten Zeigefinger"),
-    ("right middle finger", "rechten Mittelfinger"),
-    ("right ring finger", "rechten Ringfinger"),
-    ("right little finger", "rechten kleinen Finger"),
-    ("left thumb", "linken Daumen"),
-    ("right thumb", "rechten Daumen"),
+    ("left index finger", "linken zeigefinger"),
+    ("left middle finger", "linken mittelfinger"),
+    ("left ring finger", "linken ringfinger"),
+    ("left little finger", "linken kleinen finger"),
+    ("right index finger", "rechten zeigefinger"),
+    ("right middle finger", "rechten mittelfinger"),
+    ("right ring finger", "rechten ringfinger"),
+    ("right little finger", "rechten kleinen finger"),
+    ("left thumb", "linken daumen"),
+    ("right thumb", "rechten daumen"),
 ]
+
+
+def _finger_label(finger):
+    """The catalogue's name for a finger, for inserting into a sentence.
+
+    One literal per finger so that xgettext finds every msgid; _p() around a
+    variable would translate at runtime but never reach the catalogue. The
+    msgids are the same ones greeter-fprint uses, since both read its
+    catalogue.
+    """
+    return {
+        "left index finger": _p("left index finger"),
+        "left middle finger": _p("left middle finger"),
+        "left ring finger": _p("left ring finger"),
+        "left little finger": _p("left little finger"),
+        "right index finger": _p("right index finger"),
+        "right middle finger": _p("right middle finger"),
+        "right ring finger": _p("right ring finger"),
+        "right little finger": _p("right little finger"),
+        "left thumb": _p("left thumb"),
+        "right thumb": _p("right thumb"),
+    }.get(finger, finger)
 
 
 def classify(raw):
@@ -103,10 +135,11 @@ def classify(raw):
 
     if placing or swiping:
         for english, german in _FINGERS:
-            if english in text or german.lower() in text:
+            if english in text or german in text:
+                label = _finger_label(english)
                 if placing:
-                    return WAITING, _p("Place your %s on the reader") % german
-                return WAITING, _p("Swipe your %s across the reader") % german
+                    return WAITING, _p("Place your %s on the reader") % label
+                return WAITING, _p("Swipe your %s across the reader") % label
 
         if placing:
             return WAITING, _p("Place your finger on the reader")
