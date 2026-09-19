@@ -73,8 +73,10 @@ Auch auf Englisch verfügbar; der Link steht oben.
 
 ## Verwandt
 
-[greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) – dieselbe
-Anzeige für den LightDM-Anmeldebildschirm.
+- [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) – dieselbe
+  Anzeige für den LightDM-Anmeldebildschirm
+- [cinnamon-extension-fprint](https://github.com/SoulInfernoDE/cinnamon-extension-fprint)
+  – dieselben Farben für Cinnamons Legitimierungsdialog (`pkexec`, polkit)
 
 ## Für Linux Mint
 

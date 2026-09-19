@@ -70,8 +70,10 @@ Also available in German; the link sits at the top.
 
 ## Related
 
-[greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) — the same
-panel for the LightDM login screen.
+- [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) — the same
+  panel for the LightDM login screen
+- [cinnamon-extension-fprint](https://github.com/SoulInfernoDE/cinnamon-extension-fprint)
+  — the same colours for Cinnamon's authentication dialog (`pkexec`, polkit)
 
 ## For Linux Mint
 
