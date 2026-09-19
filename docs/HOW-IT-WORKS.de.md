@@ -41,6 +41,30 @@ tut er nur, nachdem er etwas abgelehnt hat. Diese Schlussfolgerung hängt an
 einem ausdrücklichen Schalter, `rearm_means_failure`, der nur hier gesetzt ist –
 der Anmeldebildschirm bekommt die echte Meldung und braucht ihn nicht.
 
+## Töne
+
+Die Anzeige spielt die drei Töne von greeter-fprint: einen steigenden Dreiklang,
+wenn der Finger erkannt wird, eine sanft fallende Terz, wenn nicht, einen
+neutralen Doppelton, wenn das Passwort gebraucht wird. Ein falsches Passwort
+bekommt denselben Ton wie ein abgelehnter Finger – abgelehnt ist abgelehnt –, und
+das Schild, das nach dem roten Aufblitzen zurückkommt, bleibt still. Das Warten
+bleibt still. Die Töne folgen dem, was angezeigt wird; ein
+Zustand, der hinter einem Aufblitzen wartet, ist also zusammen mit seiner Farbe
+zu hören.
+
+Ob sie spielen, folgt Cinnamons eigener Regel aus `soundManager.js`: Ein
+Ereignis ist nur zu hören, wenn sein `-enabled`-Schlüssel an ist. Cinnamon hat
+keinen Schlüssel für den Fingerabdruck, und ein eigenes Schema müsste mit root
+installiert werden. Deshalb folgen die Töne **Klang → Benachrichtigungen
+anzeigen** (`org.cinnamon.sounds notification-enabled`) – dem, was Cinnamon am
+ehesten für „das System teilt dir etwas mit“ hat. Schaltest du das ab, bleibt
+auch der Sperrbildschirm still.
+
+Die Dateien werden aus `/usr/share/greeter-fprint/sounds/` geladen, wo
+greeter-fprint sie installiert. Abgespielt wird über GSound, abgesichert wie
+alles andere in der Anzeige: Schlägt es fehl, bleibt der Sperrbildschirm still
+und meldet das auf stderr.
+
 ## Sicherheit
 
 Jeder Einstieg in die Anzeige ist abgesichert. Das hier ist eine Ergänzung zu

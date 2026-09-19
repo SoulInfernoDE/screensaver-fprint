@@ -25,7 +25,9 @@ Am normalen Cinnamon-Sperrbildschirm:
 - **Oder es heißt „Falsches Passwort“** – obwohl du nichts getippt hast.
 - **Meldungen stapeln sich**, eine unter der anderen.
 
-screensaver-fprint zeigt immer genau eine Meldung:
+screensaver-fprint zeigt immer genau eine Meldung, mit einem kurzen Ton im Stil
+von Cinnamon, wenn ein Finger erkannt oder abgelehnt wird, das Passwort gebraucht
+wird oder falsch ist:
 
 | | |
 | --- | --- |
@@ -40,7 +42,7 @@ screensaver-fprint zeigt immer genau eine Meldung:
 - Cinnamon und eine funktionierende Fingerabdruck-Einrichtung: `fprintd`,
   `libpam-fprintd`, ein eingelesener Finger
 - [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) installiert –
-  der Sperrbildschirm nimmt Tux und die Übersetzungen von dort
+  der Sperrbildschirm nimmt Tux, die Töne und die Übersetzungen von dort
 
 ## Installation
 

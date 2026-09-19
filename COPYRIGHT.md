@@ -49,6 +49,13 @@ Neither is redistributed here. Both come from
 - **The German strings** — from greeter-fprint's gettext catalogue, GPL-3, bound
   as the `greeter-fprint` text domain.
 
+## Fingerprint sounds
+
+Not in this repository. The panel plays the sounds greeter-fprint installs in
+`/usr/share/greeter-fprint/sounds/`. They are derived from Linux Mint's
+Cinnamon sound set (© 2022 Google, CC-BY-4.0); their attribution and the
+changes made are recorded in greeter-fprint's COPYRIGHT.md.
+
 ## The Linux Mint logo
 
 Not in this repository. The panel loads the system's own installed icon

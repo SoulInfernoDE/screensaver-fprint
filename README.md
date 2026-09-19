@@ -23,7 +23,9 @@ On the stock Cinnamon lock screen:
 - **Or it says "Incorrect password"** — although you typed nothing.
 - **Messages pile up**, one under the other.
 
-screensaver-fprint shows exactly one message at a time:
+screensaver-fprint shows exactly one message at a time, with a short sound in
+Cinnamon's style when a finger is recognised or rejected, the password is needed,
+or it is wrong:
 
 | | |
 | --- | --- |
@@ -38,7 +40,7 @@ screensaver-fprint shows exactly one message at a time:
 - Cinnamon and a working fingerprint setup: `fprintd`, `libpam-fprintd`, an
   enrolled finger
 - [greeter-fprint](https://github.com/SoulInfernoDE/greeter-fprint) installed —
-  the lock screen takes Tux and the translations from it
+  the lock screen takes Tux, the sounds and the translations from it
 
 ## Install
 

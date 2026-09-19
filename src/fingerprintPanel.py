@@ -39,11 +39,14 @@ TUX_PATHS.
 
 import gettext
 import math
+import os
+import sys
+import traceback
 
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('PangoCairo', '1.0')
-from gi.repository import Gtk, Gdk, GdkPixbuf, GLib, GObject, Pango, PangoCairo
+from gi.repository import Gtk, Gdk, GdkPixbuf, Gio, GLib, GObject, Pango, PangoCairo
 import cairo
 
 # See fingerprintMessages.py: shared catalogue, and not named "_" because
@@ -73,6 +76,18 @@ TUX_PATHS = [
 ]
 
 MINT_LOGO = "/usr/share/icons/hicolor/scalable/apps/linuxmint-logo-badge-symbolic.svg"
+
+# The sounds are installed by greeter-fprint as well, beside Tux.
+SOUND_DIRS = [
+    "/usr/share/greeter-fprint/sounds",
+    "/usr/share/cinnamon-screensaver/sounds",
+]
+SOUND_FILES = {
+    FAILED: "fingerprint-failure.oga",
+    PASSWORD_FAILED: "fingerprint-failure.oga",   # rejected is rejected
+    SUCCESS: "fingerprint-success.oga",
+    PASSWORD: "fingerprint-password.oga",
+}
 
 TUX_WIDTH = 132
 LOGO_SIZE = int(TUX_WIDTH * 0.26)
@@ -121,6 +136,7 @@ class FingerprintPanel(Gtk.Box):
         self.pulse_timer = 0
         self.flash_timer = 0
         self.pending = None          # (state, text) queued during a flash
+        self.sound_context = None    # GSound.Context, created on first use
         self.password_text = ""      # restored after a PASSWORD_FAILED flash
 
         # Whether a re-arm ("place your finger" arriving while we are already
@@ -247,6 +263,7 @@ class FingerprintPanel(Gtk.Box):
         if new_state == HIDDEN:
             self.pending = None
 
+        previous_state = self.state
         self.state = new_state
         self.message_label.set_text(text)
 
@@ -257,6 +274,7 @@ class FingerprintPanel(Gtk.Box):
 
         self.show()
         self.message_label.set_visible(text != "")
+        self._play_sound(new_state, previous_state)
 
         if new_state == WAITING:
             self._start_pulse()
@@ -268,6 +286,46 @@ class FingerprintPanel(Gtk.Box):
 
         self._apply_label_colour()
         self.canvas.queue_draw()
+
+    def _play_sound(self, new_state, previous_state):
+        # Sound follows what is shown, not what arrives - this runs only once a
+        # state is actually on screen. WAITING stays silent. A rejection sounds
+        # every time, finger or password alike, because each is new feedback.
+        # Success and the password sign sound once - and the sign coming back
+        # after a wrong password's red flash is not a new sign, so it stays
+        # quiet instead of chiming right after the failure sound.
+        #
+        # Whether to play at all is Cinnamon's own rule from soundManager.js:
+        # an event is heard only if its "-enabled" key is on. There is no
+        # fingerprint key, and a schema of our own would need root to install,
+        # so these follow "Showing notifications" - the closest thing Cinnamon
+        # has to "the system is telling you something".
+        #
+        # Guarded as a whole: a lock screen that throws here is far worse than
+        # one that stays quiet. GSound is imported late for the same reason.
+        name = SOUND_FILES.get(new_state)
+        if name is None:
+            return
+        if new_state == SUCCESS and previous_state == SUCCESS:
+            return
+        if new_state == PASSWORD and previous_state in (PASSWORD, PASSWORD_FAILED):
+            return
+        try:
+            if not Gio.Settings(schema_id="org.cinnamon.sounds").get_boolean("notification-enabled"):
+                return
+            path = next((os.path.join(d, name) for d in SOUND_DIRS
+                         if os.path.exists(os.path.join(d, name))), None)
+            if path is None:
+                return
+            if self.sound_context is None:
+                gi.require_version('GSound', '1.0')
+                from gi.repository import GSound
+                context = GSound.Context()
+                context.init(None)
+                self.sound_context = context
+            self.sound_context.play_simple({"media.filename": path}, None)
+        except Exception:
+            sys.stderr.write(traceback.format_exc())
 
     def _flash_done(self, flashed_state):
         self.flash_timer = 0

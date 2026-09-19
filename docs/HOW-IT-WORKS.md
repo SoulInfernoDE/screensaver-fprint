@@ -39,6 +39,28 @@ prompt again, and it only re-arms after refusing something. That inference sits
 behind an explicit flag, `rearm_means_failure`, set only here — the greeter
 receives the real message and does not need it.
 
+## Sounds
+
+The panel plays greeter-fprint's three sounds: a rising chime when the finger is
+recognised, a gentle falling third when it is not, a neutral double tone when
+the password is needed. A wrong password gets the same sound as a rejected
+finger - rejected is rejected - and the sign coming back after its red flash
+stays quiet. Waiting is silent. Sounds follow
+what is shown, so a state queued behind a flash is heard together with its
+colour.
+
+Whether they play follows Cinnamon's own rule from `soundManager.js`: an event
+sounds only if its `-enabled` key is on. Cinnamon has no fingerprint key, and a
+schema of our own would need root to install, so these follow **Sound →
+Showing notifications** (`org.cinnamon.sounds notification-enabled`) — the
+closest thing Cinnamon has to "the system is telling you something". Turn that
+off and the lock screen is silent too.
+
+The files are loaded from `/usr/share/greeter-fprint/sounds/`, where
+greeter-fprint installs them. Playback goes through GSound and is guarded like
+everything else in the panel: if it fails, the lock screen stays quiet and says
+so on stderr.
+
 ## Safety
 
 Every entry point into the panel is wrapped. This is an addition to an
