@@ -240,8 +240,14 @@ class UnlockDialog(BaseWindow):
             if self.fingerprint_active:
                 # Green first, unlock when it has been seen - same 1.5s as the
                 # login screen, so both give the same feedback for the same act.
-                self.fingerprint_panel.show_success(
-                    fingerprintMessages._p("Fingerprint recognised"))
+                # A password prompt means the reader had already given up, so
+                # it was the typed password that got accepted - say so, rather
+                # than "Fingerprint recognised".
+                if self.password_prompted:
+                    text = fingerprintMessages._p("Password accepted")
+                else:
+                    text = fingerprintMessages._p("Fingerprint recognised")
+                self.fingerprint_panel.show_success(text)
                 return
         except Exception:
             # Never leave the user locked out because the flash failed.
