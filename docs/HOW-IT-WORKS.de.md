@@ -52,13 +52,15 @@ bleibt still. Die Töne folgen dem, was angezeigt wird; ein
 Zustand, der hinter einem Aufblitzen wartet, ist also zusammen mit seiner Farbe
 zu hören.
 
-Ob sie spielen, folgt Cinnamons eigener Regel aus `soundManager.js`: Ein
-Ereignis ist nur zu hören, wenn sein `-enabled`-Schlüssel an ist. Cinnamon hat
-keinen Schlüssel für den Fingerabdruck, und ein eigenes Schema müsste mit root
-installiert werden. Deshalb folgen die Töne **Klang → Benachrichtigungen
-anzeigen** (`org.cinnamon.sounds notification-enabled`) – dem, was Cinnamon am
-ehesten für „das System teilt dir etwas mit“ hat. Schaltest du das ab, bleibt
-auch der Sperrbildschirm still.
+Wie laut, bestimmt der Regler **Fingerabdruck-Töne** im Lautstärke-Applet, aus
+[cinnamon-extension-fprint](https://github.com/SoulInfernoDE/cinnamon-extension-fprint),
+gespeichert im Schema `io.github.soulinfernode.fprint-sounds` von greeter-fprint;
+0 % ist still. Die Töne spielen unter einer eigenen Medienrolle, `fingerprint`,
+damit dieser Regler und Cinnamons **Lautstärke der Klänge** einander nicht
+bewegen – siehe die
+[Hinweise zur Lautstärke](https://github.com/SoulInfernoDE/greeter-fprint/blob/main/docs/HOW-IT-WORKS.de.md#lautstärke)
+bei greeter-fprint. Früher folgten sie **Klang → Benachrichtigungen anzeigen**,
+aus der Zeit, bevor sie einen eigenen Regler hatten.
 
 Die Dateien werden aus `/usr/share/greeter-fprint/sounds/` geladen, wo
 greeter-fprint sie installiert. Abgespielt wird über GSound, abgesichert wie

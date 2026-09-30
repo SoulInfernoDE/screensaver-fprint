@@ -82,6 +82,33 @@ SOUND_DIRS = [
     "/usr/share/greeter-fprint/sounds",
     "/usr/share/cinnamon-screensaver/sounds",
 ]
+# The fingerprint sounds' own volume setting and media role, shared with
+# greeter-fprint's session sounds. Canberra plays event sounds under the role
+# "event", which PipeWire files as "Notification" - the role Cinnamon's "Sounds
+# volume" slider controls and WirePlumber remembers volumes under. A role of
+# their own keeps the fingerprint slider and Cinnamon's apart.
+VOLUME_SCHEMA = "io.github.soulinfernode.fprint-sounds"
+MEDIA_ROLE = "fingerprint"
+
+
+def volume_db(percent):
+    """The slider's percent as the whole-decibel gain canberra.volume takes,
+    or None for silence. Cubic like PulseAudio's percentages; whole decibels
+    because canberra parses the value with strtod(), and this process runs
+    with the user's LC_NUMERIC - "-6.0" is invalid under a German locale.
+    Same function as greeter-fprint's session_sounds.volume_db()."""
+    if percent <= 0:
+        return None
+    return int(round(60 * math.log10(min(percent, 100) / 100)))
+
+
+def volume_percent():
+    source = Gio.SettingsSchemaSource.get_default()
+    if source is None or source.lookup(VOLUME_SCHEMA, True) is None:
+        return 100                      # schema not installed: full level
+    return Gio.Settings(schema_id=VOLUME_SCHEMA).get_int("volume")
+
+
 SOUND_FILES = {
     FAILED: "fingerprint-failure.oga",
     PASSWORD_FAILED: "fingerprint-failure.oga",   # rejected is rejected
@@ -295,11 +322,10 @@ class FingerprintPanel(Gtk.Box):
         # after a wrong password's red flash is not a new sign, so it stays
         # quiet instead of chiming right after the failure sound.
         #
-        # Whether to play at all is Cinnamon's own rule from soundManager.js:
-        # an event is heard only if its "-enabled" key is on. There is no
-        # fingerprint key, and a schema of our own would need root to install,
-        # so these follow "Showing notifications" - the closest thing Cinnamon
-        # has to "the system is telling you something".
+        # How loud is the user's "Fingerprint sounds" slider (sound applet,
+        # System Settings); 0 % is silent. It used to follow Cinnamon's
+        # "Showing notifications" switch, from before the sounds had a slider
+        # of their own - two controls for one thing, one of them hidden.
         #
         # Guarded as a whole: a lock screen that throws here is far worse than
         # one that stays quiet. GSound is imported late for the same reason.
@@ -311,7 +337,8 @@ class FingerprintPanel(Gtk.Box):
         if new_state == PASSWORD and previous_state in (PASSWORD, PASSWORD_FAILED):
             return
         try:
-            if not Gio.Settings(schema_id="org.cinnamon.sounds").get_boolean("notification-enabled"):
+            gain = volume_db(volume_percent())
+            if gain is None:
                 return
             path = next((os.path.join(d, name) for d in SOUND_DIRS
                          if os.path.exists(os.path.join(d, name))), None)
@@ -323,7 +350,9 @@ class FingerprintPanel(Gtk.Box):
                 context = GSound.Context()
                 context.init(None)
                 self.sound_context = context
-            self.sound_context.play_simple({"media.filename": path}, None)
+            self.sound_context.play_simple({"media.filename": path,
+                                            "media.role": MEDIA_ROLE,
+                                            "canberra.volume": str(gain)}, None)
         except Exception:
             sys.stderr.write(traceback.format_exc())
 

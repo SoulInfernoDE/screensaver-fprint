@@ -49,12 +49,15 @@ stays quiet. Waiting is silent. Sounds follow
 what is shown, so a state queued behind a flash is heard together with its
 colour.
 
-Whether they play follows Cinnamon's own rule from `soundManager.js`: an event
-sounds only if its `-enabled` key is on. Cinnamon has no fingerprint key, and a
-schema of our own would need root to install, so these follow **Sound →
-Showing notifications** (`org.cinnamon.sounds notification-enabled`) — the
-closest thing Cinnamon has to "the system is telling you something". Turn that
-off and the lock screen is silent too.
+How loud is the user's **Fingerprint sounds** slider in the sound applet, from
+[cinnamon-extension-fprint](https://github.com/SoulInfernoDE/cinnamon-extension-fprint),
+stored in greeter-fprint's `io.github.soulinfernode.fprint-sounds` schema; 0 %
+is silent. The sounds play under a media role of their own, `fingerprint`, so
+this slider and Cinnamon's **Sounds volume** do not move each other - see
+greeter-fprint's
+[notes on the volume](https://github.com/SoulInfernoDE/greeter-fprint/blob/main/docs/HOW-IT-WORKS.md#volume).
+They used to follow **Sound → Showing notifications**, from before they had a
+slider of their own.
 
 The files are loaded from `/usr/share/greeter-fprint/sounds/`, where
 greeter-fprint installs them. Playback goes through GSound and is guarded like
